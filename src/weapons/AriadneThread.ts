@@ -3,7 +3,7 @@ import { ARIADNE_LEVELS, ARIADNE_FLASH_DURATION } from '../config/weaponConfig';
 import type { Enemy } from '../entities/enemies/Enemy';
 
 export class AriadneThread extends BaseWeapon {
-  readonly displayName = 'Нить Ариадны';
+  readonly displayName = 'Нить братства';
 
   private cooldownTimer = 0;
   private flashTimer = 0;

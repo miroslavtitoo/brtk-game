@@ -173,7 +173,7 @@ class Bolt {
 }
 
 export class AstralCrossbow extends BaseWeapon {
-  readonly displayName = 'Астральный арбалет';
+  readonly displayName = 'Алмазный арбалет';
 
   private cooldownTimer = 0;
   private bolts: Bolt[] = [];
