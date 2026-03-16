@@ -202,16 +202,22 @@ export class AstralCrossbow extends BaseWeapon {
     this.shotCount++;
     const isPowered = this.shotCount % 5 === 0;
 
-    // For powered shot: auto-aim at strongest (most HP) enemy on screen
-    let aimAngle = facingAngle;
-    if (isPowered && enemies.length > 0) {
-      let strongest: Enemy | null = null;
-      for (const e of enemies) {
-        if (!e.active) continue;
-        if (!strongest || e.hp > strongest.hp) strongest = e;
-      }
-      if (strongest) {
+    // Auto-aim at closest enemy always; 5th shot targets strongest (most HP) and deals 2× damage
+    let aimAngle = facingAngle; // fallback if no enemies
+    const activeEnemies = enemies.filter(e => e.active);
+    if (activeEnemies.length > 0) {
+      if (isPowered) {
+        // 5th shot: strongest enemy
+        const strongest = activeEnemies.reduce((best, e) => e.hp > best.hp ? e : best);
         aimAngle = Math.atan2(strongest.y - playerY, strongest.x - playerX);
+      } else {
+        // All other shots: closest enemy
+        const closest = activeEnemies.reduce((best, e) => {
+          const da = (e.x - playerX) ** 2 + (e.y - playerY) ** 2;
+          const db = (best.x - playerX) ** 2 + (best.y - playerY) ** 2;
+          return da < db ? e : best;
+        });
+        aimAngle = Math.atan2(closest.y - playerY, closest.x - playerX);
       }
     }
 

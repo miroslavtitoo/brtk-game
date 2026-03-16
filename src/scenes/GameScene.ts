@@ -1,5 +1,7 @@
 import { Player } from '../entities/Player';
 import { XPCrystal } from '../entities/XPCrystal';
+import { Chest } from '../entities/Chest';
+import { EnemyProjectile } from '../entities/EnemyProjectile';
 import { Camera } from '../core/Camera';
 import { InputManager } from '../core/InputManager';
 import { SpawnSystem } from '../systems/SpawnSystem';
@@ -8,17 +10,22 @@ import { HUD } from '../ui/HUD';
 import { Notification } from '../ui/Notification';
 import { GameOverScreen } from '../ui/GameOverScreen';
 import { GAME_CONFIG } from '../config/gameConfig';
-import { SHADOW_CONFIG } from '../config/enemyConfig';
+import { SHADOW_CONFIG, CHEST_SPAWN_INTERVAL, CHEST_MAX_ON_MAP, CHEST_XP_BONUS } from '../config/enemyConfig';
 import { MAX_WEAPON_LEVEL } from '../config/xpConfig';
 import { type CharacterType } from '../config/characterConfig';
 import type { Enemy } from '../entities/enemies/Enemy';
+import { RangedEnemy } from '../entities/enemies/RangedEnemy';
+import { BomberEnemy } from '../entities/enemies/BomberEnemy';
 
 const BG_TILE = GAME_CONFIG.BG_TILE_SIZE;
 
 export class GameScene {
   private player: Player;
   private enemies: Enemy[] = [];
+  private enemyProjectiles: EnemyProjectile[] = [];
   private crystals: XPCrystal[] = [];
+  private chests: Chest[] = [];
+  private chestTimer = CHEST_SPAWN_INTERVAL * 0.5; // first chest sooner
   private notifications: Notification[] = [];
 
   private camera: Camera;
@@ -100,11 +107,23 @@ export class GameScene {
     // Update XP crystals
     this.updateCrystals(dt);
 
+    // Update enemy projectiles
+    this.updateEnemyProjectiles(dt);
+
+    // Update chests + spawn logic
+    this.updateChests(dt);
+    this.chestTimer -= dt;
+    if (this.chestTimer <= 0 && this.chests.length < CHEST_MAX_ON_MAP) {
+      this.chestTimer = CHEST_SPAWN_INTERVAL;
+      this.spawnChest();
+    }
+
     // Check XP level ups
     while (this.xpSystem.checkLevelUp()) {
       const lvl = this.xpSystem.weaponLevel;
       this.player.triggerInvincibility(1.0);
-      this.pushNotification(`НИТЬ АРИАДНЫ — УРОВЕНЬ ${lvl}!`, '#ffd700');
+      const wName = this.player.weaponName.toUpperCase();
+      this.pushNotification(`${wName} — УРОВЕНЬ ${lvl}!`, '#ffd700');
       this.tryHaptic('impact');
 
       if (lvl >= MAX_WEAPON_LEVEL) {
@@ -135,9 +154,28 @@ export class GameScene {
 
       enemy.update(dt, this.player.x, this.player.y);
 
-      // Skip if already dead from weapon
+      // Harvest projectiles from ranged enemies
+      if (enemy instanceof RangedEnemy) {
+        for (const p of enemy.drainProjectiles()) this.enemyProjectiles.push(p);
+      }
+
+      // Skip if already dead from weapon or self-triggered
       if (!enemy.active) {
-        this.onEnemyDied(enemy);
+        // Bomber explosion: AoE damage to player
+        if (enemy instanceof BomberEnemy && enemy.exploding) {
+          const dx = this.player.x - enemy.x;
+          const dy = this.player.y - enemy.y;
+          const r = enemy.explosionRadius + this.player.radius;
+          if (dx * dx + dy * dy <= r * r && !this.player.isInvincible()) {
+            this.player.takeDamage(enemy.damage);
+            this.player.triggerInvincibility(0.5);
+            this.tryHaptic('impact');
+          }
+          // Explosion flash crystal
+          this.crystals.push(new XPCrystal(enemy.x, enemy.y, enemy.xpValue));
+        } else {
+          this.onEnemyDied(enemy);
+        }
         this.enemies.splice(i, 1);
         continue;
       }
@@ -151,6 +189,52 @@ export class GameScene {
         }
       }
     }
+  }
+
+  private updateEnemyProjectiles(dt: number): void {
+    for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
+      const proj = this.enemyProjectiles[i];
+      proj.update(dt);
+
+      if (!proj.isDone && proj.hitsPlayer(this.player.x, this.player.y, this.player.radius)) {
+        if (!this.player.isInvincible()) {
+          this.player.takeDamage(proj.damage);
+          this.player.triggerInvincibility(0.4);
+          this.tryHaptic('impact');
+        }
+        proj.consumed = true;
+      }
+
+      if (proj.isDone) this.enemyProjectiles.splice(i, 1);
+    }
+  }
+
+  private updateChests(dt: number): void {
+    for (let i = this.chests.length - 1; i >= 0; i--) {
+      const chest = this.chests[i];
+      chest.update(dt, this.player.x, this.player.y);
+      if (chest.collected) {
+        this.chests.splice(i, 1);
+        // Force weapon level up, or give big XP if maxed
+        if (!this.xpSystem.isMaxLevel) {
+          this.xpSystem.addXP(this.xpSystem.xpForNext);
+        } else {
+          this.xpSystem.addXP(CHEST_XP_BONUS);
+        }
+        this.pushNotification('СУНДУК! УРОВЕНЬ ОРУЖИЯ +1 ✦', '#ffd700');
+        this.tryHaptic('impact');
+      }
+    }
+  }
+
+  private spawnChest(): void {
+    // Spawn at a random position 200–350px from player, off-screen edge preferred
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 220 + Math.random() * 130;
+    this.chests.push(new Chest(
+      this.player.x + Math.cos(angle) * dist,
+      this.player.y + Math.sin(angle) * dist
+    ));
   }
 
   private updateCrystals(dt: number): void {
@@ -192,8 +276,14 @@ export class GameScene {
 
     this.renderBackground(ctx);
 
+    // Chests
+    for (const ch of this.chests) ch.render(ctx);
+
     // XP crystals
     for (const c of this.crystals) c.render(ctx);
+
+    // Enemy projectiles
+    for (const p of this.enemyProjectiles) p.render(ctx);
 
     // Enemies (behind player)
     for (const e of this.enemies) e.render(ctx);
@@ -298,7 +388,10 @@ export class GameScene {
 
   private restart(): void {
     this.enemies = [];
+    this.enemyProjectiles = [];
     this.crystals = [];
+    this.chests = [];
+    this.chestTimer = CHEST_SPAWN_INTERVAL * 0.5;
     this.notifications = [];
     this.gameTime = 0;
     this.kills = 0;

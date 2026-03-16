@@ -1,4 +1,6 @@
 import { Shadow } from '../entities/enemies/Shadow';
+import { RangedEnemy } from '../entities/enemies/RangedEnemy';
+import { BomberEnemy } from '../entities/enemies/BomberEnemy';
 import type { Enemy } from '../entities/enemies/Enemy';
 import { WAVE_CONFIG } from '../config/waveConfig';
 import {
@@ -7,10 +9,18 @@ import {
   ENEMY_DAMAGE_SCALE,
 } from '../config/enemyConfig';
 
+/** Returns 0–1 mix weights for [shadow, ranged, bomber] based on game time */
+function getSpawnWeights(gameTime: number): [number, number, number] {
+  if (gameTime < 30)  return [1.00, 0.00, 0.00];
+  if (gameTime < 60)  return [0.75, 0.25, 0.00];
+  if (gameTime < 90)  return [0.55, 0.35, 0.10];
+  if (gameTime < 150) return [0.45, 0.35, 0.20];
+  return               [0.35, 0.35, 0.30];
+}
+
 export class SpawnSystem {
   private spawnAccumulator = 0;
 
-  /** Update spawner. Returns newly spawned enemies. */
   update(
     dt: number,
     gameTime: number,
@@ -29,16 +39,26 @@ export class SpawnSystem {
     this.spawnAccumulator -= toSpawn;
 
     const scaleGen = Math.floor(gameTime / ENEMY_SCALE_INTERVAL);
-    const hpScale = Math.pow(ENEMY_HP_SCALE, scaleGen);
+    const hpScale  = Math.pow(ENEMY_HP_SCALE, scaleGen);
     const dmgScale = Math.pow(ENEMY_DAMAGE_SCALE, scaleGen);
 
+    const [wShadow, wRanged, wBomber] = getSpawnWeights(gameTime);
     const spawned: Enemy[] = [];
     const remaining = Math.min(toSpawn, phase.maxEnemies - currentCount);
 
     for (let i = 0; i < remaining; i++) {
       const pos = this.getSpawnPosition(playerX, playerY, screenW, screenH);
-      // Phase 1: only shadows. Future: check phase.shadowRatio for mushrooms
-      spawned.push(new Shadow(pos.x, pos.y, hpScale, dmgScale));
+      const roll = Math.random();
+
+      if (roll < wShadow) {
+        spawned.push(new Shadow(pos.x, pos.y, hpScale, dmgScale));
+      } else if (roll < wShadow + wRanged) {
+        spawned.push(new RangedEnemy(pos.x, pos.y, hpScale, dmgScale));
+      } else if (wBomber > 0) {
+        spawned.push(new BomberEnemy(pos.x, pos.y, hpScale, dmgScale));
+      } else {
+        spawned.push(new Shadow(pos.x, pos.y, hpScale, dmgScale));
+      }
     }
 
     return spawned;
@@ -46,21 +66,17 @@ export class SpawnSystem {
 
   private getCurrentPhase(gameTime: number) {
     for (const phase of WAVE_CONFIG) {
-      if (gameTime >= phase.startTime && gameTime < phase.endTime) {
-        return phase;
-      }
+      if (gameTime >= phase.startTime && gameTime < phase.endTime) return phase;
     }
     return null;
   }
 
-  /** Spawn just outside the visible screen area at a random angle */
   private getSpawnPosition(
     playerX: number,
     playerY: number,
     screenW: number,
     screenH: number
   ): { x: number; y: number } {
-    // Spawn outside the screen diagonal + margin
     const spawnDist = Math.sqrt(screenW * screenW + screenH * screenH) / 2 + 60;
     const angle = Math.random() * Math.PI * 2;
     return {
