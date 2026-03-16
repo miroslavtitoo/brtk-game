@@ -1,11 +1,11 @@
 import { XP_TABLE, MAX_WEAPON_LEVEL } from '../config/xpConfig';
-import type { AriadneThread } from '../weapons/AriadneThread';
+import type { BaseWeapon } from '../weapons/Weapon';
 
 export class XPSystem {
   private xp = 0;
   private levelIndex = 0; // 0-based index into XP_TABLE
 
-  constructor(private weapon: AriadneThread) {}
+  constructor(private weapon: BaseWeapon) {}
 
   get currentXP(): number {
     return this.xp;

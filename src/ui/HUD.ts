@@ -19,7 +19,7 @@ export class HUD {
     ctx.imageSmoothingEnabled = false;
 
     this.renderHPBar(ctx, player, PADDING, PADDING);
-    this.renderXPBar(ctx, xpSystem, PADDING, PADDING + BAR_H + 6);
+    this.renderXPBar(ctx, player, xpSystem, PADDING, PADDING + BAR_H + 6);
     this.renderTimer(ctx, screenW, gameTime);
     this.renderWeaponLevel(ctx, xpSystem);
 
@@ -61,6 +61,7 @@ export class HUD {
 
   private renderXPBar(
     ctx: CanvasRenderingContext2D,
+    player: Player,
     xpSystem: XPSystem,
     x: number,
     y: number
@@ -90,7 +91,8 @@ export class HUD {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 8px monospace';
     ctx.textBaseline = 'middle';
-    const label = isMax ? `НИТЬ Lv.MAX` : `НИТЬ Lv.${level}`;
+    const weaponShort = player.weaponName.split(' ')[0].toUpperCase();
+    const label = isMax ? `${weaponShort} Lv.MAX` : `${weaponShort} Lv.${level}`;
     ctx.fillText(label, x + 4, y + BAR_H / 2);
   }
 

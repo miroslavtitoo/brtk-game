@@ -10,6 +10,7 @@ import { GameOverScreen } from '../ui/GameOverScreen';
 import { GAME_CONFIG } from '../config/gameConfig';
 import { SHADOW_CONFIG } from '../config/enemyConfig';
 import { MAX_WEAPON_LEVEL } from '../config/xpConfig';
+import { type CharacterType } from '../config/characterConfig';
 import type { Enemy } from '../entities/enemies/Enemy';
 
 const BG_TILE = GAME_CONFIG.BG_TILE_SIZE;
@@ -38,12 +39,14 @@ export class GameScene {
     private readonly ctx: CanvasRenderingContext2D,
     private readonly canvas: HTMLCanvasElement,
     private readonly input: InputManager,
-    private readonly dpr: number
+    private readonly dpr: number,
+    private characterType: CharacterType = 'theseus',
+    private readonly onBackToMenu?: () => void
   ) {
     this.screenW = canvas.width / dpr;
     this.screenH = canvas.height / dpr;
 
-    this.player = new Player(0, 0);
+    this.player = new Player(0, 0, this.characterType);
     this.camera = new Camera(0, 0);
     this.camera.snapTo(0, 0);
 
@@ -119,7 +122,10 @@ export class GameScene {
     if (this.player.hp <= 0 && !this.isDead) {
       this.isDead = true;
       this.tryHaptic('notification');
-      this.gameOverScreen.show(this.gameTime, this.kills, () => this.restart());
+      this.gameOverScreen.show(this.gameTime, this.kills, () => {
+        if (this.onBackToMenu) this.onBackToMenu();
+        else this.restart();
+      });
     }
   }
 
@@ -298,7 +304,7 @@ export class GameScene {
     this.kills = 0;
     this.isDead = false;
 
-    this.player = new Player(0, 0);
+    this.player = new Player(0, 0, this.characterType);
     this.camera.snapTo(0, 0);
     this.spawnSystem = new SpawnSystem();
     this.xpSystem = new XPSystem(this.player.weapon);
