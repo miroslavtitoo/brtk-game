@@ -3,8 +3,8 @@ import { GAME_CONFIG } from '../config/gameConfig';
 import { roundRect } from '../utils/math';
 import type { InputManager } from '../core/InputManager';
 
-const CARD_W = 100;
-const CARD_H = 148;
+const CARD_W = 104;
+const CARD_H = 172;
 const CARD_GAP = 12;
 const TOTAL_CARDS_W = CARD_W * 3 + CARD_GAP * 2;
 
@@ -63,19 +63,21 @@ export class CharacterSelectScene {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
+    const cardY = H / 2 - CARD_H / 2 - 10;
+
     ctx.font = 'bold 11px monospace';
     ctx.fillStyle = 'rgba(120,180,255,0.6)';
-    ctx.fillText('ПЕТРОСТИГИЯ', W / 2, H * 0.10);
+    ctx.fillText('ПЕТРОСТИГИЯ', W / 2, cardY - 56);
 
     ctx.font = 'bold 22px monospace';
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillText('ВЫБЕРИ ГЕРОЯ', W / 2 + 1, H * 0.18 + 1);
+    ctx.fillText('ВЫБЕРИ ГЕРОЯ', W / 2 + 1, cardY - 34 + 1);
     ctx.fillStyle = '#e8e8ff';
-    ctx.fillText('ВЫБЕРИ ГЕРОЯ', W / 2, H * 0.18);
+    ctx.fillText('ВЫБЕРИ ГЕРОЯ', W / 2, cardY - 34);
 
     ctx.font = '10px monospace';
     ctx.fillStyle = 'rgba(150,150,200,0.7)';
-    ctx.fillText('Шестеро потомков олимпийских родов', W / 2, H * 0.24);
+    ctx.fillText('Шестеро потомков олимпийских родов', W / 2, cardY - 14);
 
     // Cards
     this.renderCards(ctx, W, H);
@@ -116,7 +118,7 @@ export class CharacterSelectScene {
     this.cardBounds = [];
 
     const startX = W / 2 - TOTAL_CARDS_W / 2;
-    const cardY = H * 0.30;
+    const cardY = H / 2 - CARD_H / 2 - 10;
 
     CHARACTERS.forEach((char, i) => {
       const cx = startX + i * (CARD_W + CARD_GAP);
@@ -166,10 +168,10 @@ export class CharacterSelectScene {
     const cx = x + CARD_W / 2;
 
     // Character avatar (colored square — placeholder)
-    const avatarY = y + 22;
-    const avatarSize = 28;
+    const avatarY = y + 18;
+    const avatarSize = 38;
     ctx.shadowColor = char.color;
-    ctx.shadowBlur = selected ? 14 : 4;
+    ctx.shadowBlur = selected ? 16 : 5;
     ctx.fillStyle = char.color;
     ctx.strokeStyle = char.accentColor;
     ctx.lineWidth = 1.5;
@@ -185,36 +187,46 @@ export class CharacterSelectScene {
     ctx.arc(cx + avatarSize / 2 + 4, avatarY + avatarSize / 2, 2, 0, Math.PI * 2);
     ctx.fill();
 
+    const textTop = avatarY + avatarSize;
+
     // Hero name
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.font = `bold 11px monospace`;
-    ctx.fillStyle = selected ? char.color : 'rgba(200,200,230,0.85)';
-    ctx.fillText(char.heroName, cx, avatarY + avatarSize + 8);
+    ctx.font = `bold 13px monospace`;
+    ctx.fillStyle = selected ? char.color : 'rgba(210,210,240,0.9)';
+    ctx.shadowColor = selected ? char.color : 'transparent';
+    ctx.shadowBlur = selected ? 8 : 0;
+    ctx.fillText(char.heroName, cx, textTop + 10);
+    ctx.shadowBlur = 0;
 
-    // Player name
-    ctx.font = '8px monospace';
-    ctx.fillStyle = 'rgba(150,150,180,0.7)';
-    ctx.fillText(char.playerName, cx, avatarY + avatarSize + 22);
+    // Divider line
+    ctx.strokeStyle = selected ? `${char.color}66` : 'rgba(80,80,120,0.4)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x + 10, textTop + 28);
+    ctx.lineTo(x + CARD_W - 10, textTop + 28);
+    ctx.stroke();
 
     // Weapon name
-    ctx.font = 'bold 7px monospace';
-    ctx.fillStyle = selected ? '#ffd700' : 'rgba(200,180,100,0.7)';
-    ctx.fillText(char.weaponName, cx, avatarY + avatarSize + 38);
+    ctx.font = 'bold 8px monospace';
+    ctx.fillStyle = selected ? '#ffd700' : 'rgba(200,180,100,0.75)';
+    ctx.fillText(char.weaponName, cx, textTop + 36);
 
-    // Weapon desc (wrap at ~14 chars)
+    // Weapon desc (wrap into two lines)
     ctx.font = '7px monospace';
-    ctx.fillStyle = 'rgba(180,180,200,0.6)';
+    ctx.fillStyle = 'rgba(180,180,200,0.65)';
     const desc = char.weaponDesc;
-    const line1 = desc.slice(0, 14);
-    const line2 = desc.slice(14);
-    ctx.fillText(line1, cx, avatarY + avatarSize + 50);
-    if (line2) ctx.fillText(line2, cx, avatarY + avatarSize + 61);
+    // Split at last space before char 16
+    const mid = desc.lastIndexOf(' ', 17);
+    const line1 = mid > 0 ? desc.slice(0, mid) : desc.slice(0, 15);
+    const line2 = mid > 0 ? desc.slice(mid + 1) : desc.slice(15);
+    ctx.fillText(line1, cx, textTop + 52);
+    if (line2) ctx.fillText(line2, cx, textTop + 63);
 
-    // Tagline
+    // Tagline at bottom
     ctx.font = '7px monospace';
-    ctx.fillStyle = selected ? 'rgba(180,220,255,0.9)' : 'rgba(120,140,180,0.6)';
-    ctx.fillText(char.tagline, cx, y + CARD_H - 14);
+    ctx.fillStyle = selected ? 'rgba(180,220,255,0.9)' : 'rgba(120,140,180,0.65)';
+    ctx.fillText(char.tagline, cx, y + CARD_H - 16);
 
     ctx.restore();
   }
@@ -224,7 +236,8 @@ export class CharacterSelectScene {
     const btnW = 180;
     const btnH = 44;
     const btnX = W / 2 - btnW / 2;
-    const btnY = H * 0.30 + CARD_H + 24;
+    const cardY = H / 2 - CARD_H / 2 - 10;
+    const btnY = cardY + CARD_H + 20;
 
     this.btnBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
 
