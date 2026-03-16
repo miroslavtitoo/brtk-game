@@ -115,7 +115,7 @@ export class CharacterSelectScene {
 
     // Pulsing main title «ПЕТРОСТИГИЯ» (Minecraft-style breathe)
     const pulse = 1 + Math.sin(this.time * 1.8) * 0.04; // scale 0.96–1.04
-    const titleY = cardY - 48;
+    const titleY = cardY - 68;
 
     ctx.save();
     ctx.translate(W / 2, titleY);
@@ -138,9 +138,9 @@ export class CharacterSelectScene {
     // Subtitle «ВЫБЕРИ ГЕРОЯ»
     ctx.font = 'bold 14px monospace';
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.fillText('ВЫБЕРИ ГЕРОЯ', W / 2 + 1, cardY - 18 + 1);
+    ctx.fillText('ВЫБЕРИ ГЕРОЯ', W / 2 + 1, cardY - 28 + 1);
     ctx.fillStyle = 'rgba(200,210,240,0.8)';
-    ctx.fillText('ВЫБЕРИ ГЕРОЯ', W / 2, cardY - 18);
+    ctx.fillText('ВЫБЕРИ ГЕРОЯ', W / 2, cardY - 28);
   }
 
   /* ── Cards ─────────────────────────────────────────────────── */
