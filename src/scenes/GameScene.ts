@@ -10,12 +10,13 @@ import { HUD } from '../ui/HUD';
 import { Notification } from '../ui/Notification';
 import { GameOverScreen } from '../ui/GameOverScreen';
 import { GAME_CONFIG } from '../config/gameConfig';
-import { SHADOW_CONFIG, CHEST_SPAWN_INTERVAL, CHEST_MAX_ON_MAP, CHEST_XP_BONUS } from '../config/enemyConfig';
+import { SHADOW_CONFIG, CHEST_SPAWN_INTERVAL, CHEST_MAX_ON_MAP, CHEST_XP_BONUS, BOSS_SPAWN_INTERVAL } from '../config/enemyConfig';
 import { MAX_WEAPON_LEVEL } from '../config/xpConfig';
 import { type CharacterType } from '../config/characterConfig';
 import type { Enemy } from '../entities/enemies/Enemy';
 import { RangedEnemy } from '../entities/enemies/RangedEnemy';
 import { BomberEnemy } from '../entities/enemies/BomberEnemy';
+import { Boss } from '../entities/enemies/Boss';
 
 const BG_TILE = GAME_CONFIG.BG_TILE_SIZE;
 
@@ -25,7 +26,9 @@ export class GameScene {
   private enemyProjectiles: EnemyProjectile[] = [];
   private crystals: XPCrystal[] = [];
   private chests: Chest[] = [];
-  private chestTimer = CHEST_SPAWN_INTERVAL * 0.5; // first chest sooner
+  private chestTimer = CHEST_SPAWN_INTERVAL * 0.5;
+  private bossTimer = BOSS_SPAWN_INTERVAL;
+  private bossWave = 1;
   private notifications: Notification[] = [];
 
   private camera: Camera;
@@ -118,6 +121,13 @@ export class GameScene {
       this.spawnChest();
     }
 
+    // Boss spawn
+    this.bossTimer -= dt;
+    if (this.bossTimer <= 0) {
+      this.bossTimer = BOSS_SPAWN_INTERVAL;
+      this.spawnBoss();
+    }
+
     // Check XP level ups
     while (this.xpSystem.checkLevelUp()) {
       const lvl = this.xpSystem.weaponLevel;
@@ -141,10 +151,11 @@ export class GameScene {
     if (this.player.hp <= 0 && !this.isDead) {
       this.isDead = true;
       this.tryHaptic('notification');
-      this.gameOverScreen.show(this.gameTime, this.kills, () => {
-        if (this.onBackToMenu) this.onBackToMenu();
-        else this.restart();
-      });
+      this.gameOverScreen.show(
+        this.gameTime, this.kills,
+        () => this.restart(),            // "Играть снова"
+        () => this.onBackToMenu?.()      // "Меню"
+      );
     }
   }
 
@@ -157,6 +168,19 @@ export class GameScene {
       // Harvest projectiles from ranged enemies
       if (enemy instanceof RangedEnemy) {
         for (const p of enemy.drainProjectiles()) this.enemyProjectiles.push(p);
+      }
+
+      // Boss shockwave damage
+      if (enemy instanceof Boss && enemy.shockwaving) {
+        enemy.shockwaving = false;
+        const dx = this.player.x - enemy.x;
+        const dy = this.player.y - enemy.y;
+        const r = enemy.shockwaveRadius + this.player.radius;
+        if (dx * dx + dy * dy <= r * r && !this.player.isInvincible()) {
+          this.player.takeDamage(enemy.damage * 0.8);
+          this.player.triggerInvincibility(0.6);
+          this.tryHaptic('impact');
+        }
       }
 
       // Skip if already dead from weapon or self-triggered
@@ -228,13 +252,25 @@ export class GameScene {
   }
 
   private spawnChest(): void {
-    // Spawn at a random position 200–350px from player, off-screen edge preferred
     const angle = Math.random() * Math.PI * 2;
     const dist = 220 + Math.random() * 130;
     this.chests.push(new Chest(
       this.player.x + Math.cos(angle) * dist,
       this.player.y + Math.sin(angle) * dist
     ));
+  }
+
+  private spawnBoss(): void {
+    const spawnDist = Math.sqrt(this.screenW * this.screenW + this.screenH * this.screenH) / 2 + 80;
+    const angle = Math.random() * Math.PI * 2;
+    const boss = new Boss(
+      this.player.x + Math.cos(angle) * spawnDist,
+      this.player.y + Math.sin(angle) * spawnDist,
+      this.bossWave
+    );
+    this.enemies.push(boss);
+    this.pushNotification(`⚠ ОБОРОТЕНЬ ПОЯВИЛСЯ!`, '#cc44ff');
+    this.bossWave++;
   }
 
   private updateCrystals(dt: number): void {
@@ -296,7 +332,15 @@ export class GameScene {
     // Screen-space UI
     this.hud.render(ctx, W, H, this.player, this.gameTime, this.xpSystem);
 
-    for (const n of this.notifications) n.render(ctx, W, H);
+    // Notification stack: newest = slot 0 (bottom), older pushed up
+    const active = this.notifications.filter(n => n.active);
+    for (let i = active.length - 1; i >= 0; i--) {
+      const slot = active.length - 1 - i;
+      active[i].render(ctx, W, H, slot);
+    }
+
+    // Chest arrows — screen-edge indicators
+    this.renderChestArrows(ctx, W, H);
 
     this.input.render(ctx);
 
@@ -351,6 +395,55 @@ export class GameScene {
     }
   }
 
+  private renderChestArrows(ctx: CanvasRenderingContext2D, W: number, H: number): void {
+    if (this.chests.length === 0) return;
+
+    const camX = this.camera.x;
+    const camY = this.camera.y;
+    const margin = 28; // distance from screen edge
+
+    for (const chest of this.chests) {
+      // Chest in screen space
+      const sx = chest.x - camX + W / 2;
+      const sy = chest.y - camY + H / 2;
+
+      // Only show arrow if chest is off-screen (with margin)
+      if (sx >= margin && sx <= W - margin && sy >= margin && sy <= H - margin) continue;
+
+      // Direction from screen center to chest screen pos
+      const dx = sx - W / 2;
+      const dy = sy - H / 2;
+      const angle = Math.atan2(dy, dx);
+
+      // Clamp to screen edge
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const scaleX = (W / 2 - margin) / Math.abs(cos || 0.001);
+      const scaleY = (H / 2 - margin) / Math.abs(sin || 0.001);
+      const scale = Math.min(scaleX, scaleY);
+      const ax = W / 2 + cos * scale;
+      const ay = H / 2 + sin * scale;
+
+      // Draw gold arrow triangle
+      const arrowSize = 10;
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(angle);
+      ctx.globalAlpha = 0.85;
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.moveTo(arrowSize, 0);
+      ctx.lineTo(-arrowSize * 0.6, -arrowSize * 0.55);
+      ctx.lineTo(-arrowSize * 0.6,  arrowSize * 0.55);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+  }
+
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   private circlesOverlap(
@@ -392,6 +485,8 @@ export class GameScene {
     this.crystals = [];
     this.chests = [];
     this.chestTimer = CHEST_SPAWN_INTERVAL * 0.5;
+    this.bossTimer = BOSS_SPAWN_INTERVAL;
+    this.bossWave = 1;
     this.notifications = [];
     this.gameTime = 0;
     this.kills = 0;

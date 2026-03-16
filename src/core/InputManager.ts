@@ -48,7 +48,6 @@ export class InputManager {
     const touch = e.changedTouches[0];
     const rect = this.canvas.getBoundingClientRect();
     const y = touch.clientY - rect.top;
-    if (y < this.screenH / 2) return; // only bottom half
 
     this.activeTouchId = touch.identifier;
     this.activateJoystick(touch.clientX - rect.left, y);
@@ -84,8 +83,6 @@ export class InputManager {
   private onMouseDown = (e: MouseEvent): void => {
     const rect = this.canvas.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    if (y < this.screenH / 2) return;
-
     this.mouseDown = true;
     this.activateJoystick(e.clientX - rect.left, y);
   };

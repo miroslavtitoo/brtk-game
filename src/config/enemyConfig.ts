@@ -56,6 +56,9 @@ export const BOMBER_CONFIG: EnemyStats = {
 export const BOMBER_TRIGGER_RANGE = 80;    // px — triggers explosion
 export const BOMBER_EXPLOSION_RADIUS = 100; // px — AoE damage radius
 
+// ── Boss ─────────────────────────────────────────────────────────────────────
+export const BOSS_SPAWN_INTERVAL = 120; // seconds between bosses
+
 // ── Scaling ───────────────────────────────────────────────────────────────────
 export const ENEMY_SCALE_INTERVAL = 60;
 export const ENEMY_HP_SCALE = 1.2;

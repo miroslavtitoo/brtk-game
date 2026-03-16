@@ -2,7 +2,7 @@ import { roundRect, formatTime } from '../utils/math';
 import type { Player } from '../entities/Player';
 import type { XPSystem } from '../systems/XPSystem';
 
-const PADDING = 12;
+const PADDING = 20;
 const BAR_H = 10;
 const BAR_W = 160;
 

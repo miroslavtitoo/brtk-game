@@ -216,13 +216,6 @@ export class CharacterSelectScene {
     ctx.fillStyle = selected ? 'rgba(180,220,255,0.9)' : 'rgba(120,140,180,0.6)';
     ctx.fillText(char.tagline, cx, y + CARD_H - 14);
 
-    // Selected checkmark
-    if (selected) {
-      ctx.fillStyle = char.color;
-      ctx.font = 'bold 9px monospace';
-      ctx.fillText('▼ ВЫБРАН', cx, y + CARD_H - 5);
-    }
-
     ctx.restore();
   }
 
