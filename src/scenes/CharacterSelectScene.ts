@@ -17,6 +17,7 @@ export class CharacterSelectScene {
   private screenW = 0;
   private screenH = 0;
   private bgOffset = 0;
+  private time = 0; // for title pulse animation
 
   private cardBounds: Array<{ x: number; y: number; w: number; h: number; id: CharacterType }> = [];
   private btnBounds = { x: 0, y: 0, w: 0, h: 0 };
@@ -46,6 +47,7 @@ export class CharacterSelectScene {
 
   update(dt: number): void {
     this.bgOffset = (this.bgOffset + dt * 15) % GAME_CONFIG.BG_TILE_SIZE;
+    this.time += dt;
   }
 
   render(): void {
@@ -111,17 +113,34 @@ export class CharacterSelectScene {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Small subtitle
-    ctx.font = 'bold 12px monospace';
-    ctx.fillStyle = 'rgba(120,180,255,0.55)';
-    ctx.fillText('ПЕТРОСТИГИЯ', W / 2, cardY - 42);
+    // Pulsing main title «ПЕТРОСТИГИЯ» (Minecraft-style breathe)
+    const pulse = 1 + Math.sin(this.time * 1.8) * 0.04; // scale 0.96–1.04
+    const titleY = cardY - 48;
 
-    // Main title with shadow
-    ctx.font = 'bold 20px monospace';
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillText('ВЫБЕРИ ГЕРОЯ', W / 2 + 1, cardY - 19 + 1);
-    ctx.fillStyle = '#e8e8ff';
-    ctx.fillText('ВЫБЕРИ ГЕРОЯ', W / 2, cardY - 19);
+    ctx.save();
+    ctx.translate(W / 2, titleY);
+    ctx.scale(pulse, pulse);
+
+    // Shadow
+    ctx.font = 'bold 26px monospace';
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillText('ПЕТРОСТИГИЯ', 2, 2);
+
+    // Glow
+    ctx.shadowColor = '#5588ff';
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = '#c8d8ff';
+    ctx.fillText('ПЕТРОСТИГИЯ', 0, 0);
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
+
+    // Subtitle «ВЫБЕРИ ГЕРОЯ»
+    ctx.font = 'bold 14px monospace';
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillText('ВЫБЕРИ ГЕРОЯ', W / 2 + 1, cardY - 18 + 1);
+    ctx.fillStyle = 'rgba(200,210,240,0.8)';
+    ctx.fillText('ВЫБЕРИ ГЕРОЯ', W / 2, cardY - 18);
   }
 
   /* ── Cards ─────────────────────────────────────────────────── */
@@ -266,7 +285,7 @@ export class CharacterSelectScene {
     const btnW = 180;
     const btnH = 44;
     const btnX = W / 2 - btnW / 2;
-    const btnY = cardY + CARD_H + 18;
+    const btnY = cardY + CARD_H + 32;
 
     this.btnBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
 
